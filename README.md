@@ -88,12 +88,14 @@ Flags:
 | `-interval` | `1m`                  | Check interval |
 | `-timeout`  | `5s`                  | HTTP timeout |
 
-Detection details (macOS):
+Detection details (macOS 14+):
 
-- **Camera**: scans the last 2 minutes of unified logs for
-  `VDCAssistant_Power_State = On` (com.apple.cmio).
-- **Microphone**: scans for CoreAudio `HALS_Device` entries with
-  `isInput = 1` and `isRunning = 1`.
+- **Camera**: tracks `AVCaptureSession ... running -> 1` / `running -> 0`
+  events in the `com.apple.cameracapture` unified-log subsystem.
+- **Microphone**: tracks `setPlayState Started/Stopped Input` events in the
+  `com.apple.coreaudio:as_client` category, pairing sessions by id.
+- Both keep a running count of active sessions: each poll scans only the log
+  entries since the previous one and applies the deltas.
 - **Wi-Fi**: reads the current SSID via `system_profiler SPAirPortDataType`
   (works on macOS 14+ where `airport -I` no longer returns the SSID).
 
