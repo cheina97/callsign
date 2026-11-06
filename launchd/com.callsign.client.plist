@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.callsign.client</string>
+
+  <!-- __PROJECT_DIR__ is replaced by `make install-agent` -->
+  <key>ProgramArguments</key>
+  <array>
+    <string>__PROJECT_DIR__/bin/callsign-client</string>
+  </array>
+
+  <!-- The client reads .env from its working directory -->
+  <key>WorkingDirectory</key>
+  <string>__PROJECT_DIR__</string>
+
+  <!-- Start at login and restart automatically if it crashes -->
+  <key>RunAtLoad</key>
+  <true/>
+  <key>KeepAlive</key>
+  <true/>
+
+  <!-- Wait 10s before restarting after a crash -->
+  <key>ThrottleInterval</key>
+  <integer>10</integer>
+
+  <key>StandardOutPath</key>
+  <string>/tmp/callsign.log</string>
+  <key>StandardErrorPath</key>
+  <string>/tmp/callsign.log</string>
+</dict>
+</plist>

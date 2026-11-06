@@ -1,0 +1,15 @@
+# Secrets / local configuration
+.env
+
+# Build artifacts
+bin/
+callsign-client
+fake-server
+
+# Editor / OS
+.vscode/
+.DS_Store
+
+# Go
+*.test
+*.out
