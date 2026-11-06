@@ -21,6 +21,7 @@ func main() {
 	first := true
 	for {
 		camera, mic := monitor.InUse()
+		log.Printf("check: camera: %v, mic: %v", camera, mic)
 		if first || camera != lastCamera || mic != lastMic {
 			log.Printf("camera: %v -> %v, mic: %v -> %v", lastCamera, camera, lastMic, mic)
 			lastCamera, lastMic = camera, mic
