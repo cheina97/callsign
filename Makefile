@@ -8,7 +8,8 @@ PLIST_PATH   := $(HOME)/Library/LaunchAgents/$(PLIST_LABEL).plist
 PROJECT_DIR  := $(shell pwd)
 
 .PHONY: all build build-client build-server run-client run-server \
-        test test-e2e vet fmt tidy install-agent uninstall-agent agent-status clean help
+        test test-e2e vet fmt tidy install-agent uninstall-agent agent-status clean help \
+        firmware-build firmware-upload firmware-monitor
 
 all: build
 
@@ -46,6 +47,17 @@ fmt: ## gofmt check (fails if files are unformatted)
 
 tidy: ## go mod tidy
 	cd client && go mod tidy
+
+## Firmware (ESP32, requires PlatformIO: pip install platformio)
+
+firmware-build: ## Compile the ESP32 firmware (also needed before Wokwi simulation)
+	cd firmware && pio run
+
+firmware-upload: ## Flash the firmware to a connected ESP32
+	cd firmware && pio run -t upload
+
+firmware-monitor: ## Open the serial monitor (115200 baud)
+	cd firmware && pio device monitor
 
 ## launchd (run the client always in background, restart on failure)
 

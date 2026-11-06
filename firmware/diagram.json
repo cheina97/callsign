@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "author": "callsign",
+  "editor": "wokwi",
+  "parts": [
+    {
+      "type": "board-esp32-devkit-c-v4",
+      "id": "esp",
+      "top": 0,
+      "left": 0,
+      "attrs": {}
+    },
+    {
+      "type": "wokwi-max7219-matrix",
+      "id": "matrix",
+      "top": -150,
+      "left": 100,
+      "attrs": { "chain": "4" }
+    }
+  ],
+  "connections": [
+    [ "esp:TX", "$serialMonitor:RX", "", [] ],
+    [ "esp:RX", "$serialMonitor:TX", "", [] ],
+    [ "esp:23", "matrix:DIN", "green", [ "v0" ] ],
+    [ "esp:18", "matrix:CLK", "orange", [ "v0" ] ],
+    [ "esp:5", "matrix:CS", "purple", [ "v0" ] ],
+    [ "esp:VIN", "matrix:VCC", "red", [ "v0" ] ],
+    [ "esp:GND.1", "matrix:GND", "black", [ "v0" ] ]
+  ],
+  "dependencies": {}
+}

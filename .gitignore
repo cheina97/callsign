@@ -16,3 +16,6 @@ fake-server
 
 # stray binaries
 client/monitor-debug
+
+# PlatformIO
+firmware/.pio/
