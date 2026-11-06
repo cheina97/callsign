@@ -13,3 +13,6 @@ fake-server
 # Go
 *.test
 *.out
+
+# stray binaries
+client/monitor-debug
