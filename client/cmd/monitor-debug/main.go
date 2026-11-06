@@ -11,18 +11,27 @@ import (
 )
 
 func main() {
+	status := func(icon bool) string {
+		if icon {
+			return "🟢 on"
+		}
+		return "⚪ off"
+	}
 	cameraOn, micOn := false, false
+	printStatus := func() {
+		log.Printf("📷 %s  🎤 %s", status(cameraOn), status(micOn))
+	}
 
 	err := mediaDevices.StartCameraListener(func(isOn bool) {
-		log.Printf("camera: %v -> %v, mic: %v", cameraOn, isOn, micOn)
 		cameraOn = isOn
+		printStatus()
 	})
 	if err != nil {
 		log.Fatalf("camera listener: %v", err)
 	}
 	err = mediaDevices.StartMicrophoneListener(func(isOn bool) {
-		log.Printf("camera: %v, mic: %v -> %v", cameraOn, micOn, isOn)
 		micOn = isOn
+		printStatus()
 	})
 	if err != nil {
 		log.Fatalf("microphone listener: %v", err)
