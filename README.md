@@ -88,14 +88,14 @@ Flags:
 | `-interval` | `1m`                  | Check interval |
 | `-timeout`  | `5s`                  | HTTP timeout |
 
-Detection details (macOS 14+):
+Detection details (macOS):
 
-- **Camera**: tracks `AVCaptureSession ... running -> 1` / `running -> 0`
-  events in the `com.apple.cameracapture` unified-log subsystem.
-- **Microphone**: tracks `setPlayState Started/Stopped Input` events in the
-  `com.apple.coreaudio:as_client` category, pairing sessions by id.
-- Both keep a running count of active sessions: each poll scans only the log
-  entries since the previous one and applies the deltas.
+- **Camera / Microphone**: queries the native CoreMediaIO / CoreAudio device
+  state via [go-media-devices-state](https://github.com/cheina97/go-media-devices-state)
+  (a fork of [antonfisher/go-media-devices-state](https://github.com/antonfisher/go-media-devices-state),
+  wired in with a `replace` directive in `client/go.mod`). This reports
+  whether any process currently holds a device open and works for any app
+  (native, browser, Electron). Requires cgo.
 - **Wi-Fi**: reads the current SSID via `system_profiler SPAirPortDataType`
   (works on macOS 14+ where `airport -I` no longer returns the SSID).
 
