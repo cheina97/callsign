@@ -112,14 +112,15 @@ go run ./cmd/fake-server -addr :8080          # -timeout 5m by default
 ### Testing camera/microphone detection
 
 To verify detection alone (no server, no display), run `monitor-debug`: it
-polls the camera/microphone state and prints a line every time it changes:
+registers OS-level event listeners and prints a line the instant the camera
+or microphone state changes:
 
 ```sh
-go run ./cmd/monitor-debug            # -interval 2s by default
+go run ./cmd/monitor-debug
 ```
 
 Open/close an app that uses the camera or microphone (e.g. Photo Booth,
-Zoom) and you should see the transitions logged.
+Zoom) and you should see the transitions logged immediately.
 
 ### End-to-end tests
 

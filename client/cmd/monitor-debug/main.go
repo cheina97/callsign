@@ -1,31 +1,36 @@
-// monitor-debug polls camera/microphone usage and prints a line every time
-// the detected state changes. Useful for testing detection without any
-// server or display involved.
+// monitor-debug listens for camera/microphone state changes via OS-level
+// event listeners and prints a line every time either changes. Useful for
+// testing detection without any server or display involved.
 package main
 
 import (
-	"flag"
 	"log"
-	"time"
 
-	"callsign-client/internal/monitor"
+	mediaDevices "github.com/antonfisher/go-media-devices-state"
+	"github.com/antonfisher/go-media-devices-state/pkg/camera"
 )
 
-var interval = flag.Duration("interval", 2*time.Second, "How often to check camera/microphone state")
-
 func main() {
-	flag.Parse()
-	log.Printf("polling camera/microphone every %s - toggle them to see changes", *interval)
+	cameraOn, micOn := false, false
 
-	lastCamera, lastMic := false, false
-	first := true
-	for {
-		camera, mic := monitor.InUse()
-		if first || camera != lastCamera || mic != lastMic {
-			log.Printf("camera: %v -> %v, mic: %v -> %v", lastCamera, camera, lastMic, mic)
-			lastCamera, lastMic = camera, mic
-			first = false
-		}
-		time.Sleep(*interval)
+	err := mediaDevices.StartCameraListener(func(isOn bool) {
+		log.Printf("camera: %v -> %v, mic: %v", cameraOn, isOn, micOn)
+		cameraOn = isOn
+	})
+	if err != nil {
+		log.Fatalf("camera listener: %v", err)
 	}
+	err = mediaDevices.StartMicrophoneListener(func(isOn bool) {
+		log.Printf("camera: %v, mic: %v -> %v", cameraOn, micOn, isOn)
+		micOn = isOn
+	})
+	if err != nil {
+		log.Fatalf("microphone listener: %v", err)
+	}
+
+	log.Print("listening for camera/microphone events - toggle them to see changes")
+
+	// CoreMediaIO/CoreAudio deliver listener callbacks through the main
+	// thread's run loop, which a Go program does not run by default.
+	camera.RunMainRunLoop()
 }
