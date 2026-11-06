@@ -159,11 +159,3 @@ The plist template lives in [launchd/com.callsign.client.plist](launchd/com.call
 `make install-agent` fills in the project path and loads it into
 `~/Library/LaunchAgents`. `KeepAlive=true` makes launchd restart the process
 whenever it exits unexpectedly (throttled to one restart per 10s).
-
-## CI (GitHub Actions)
-
-[.github/workflows/ci.yaml](.github/workflows/ci.yaml) runs on every push/PR:
-
-1. **build** — `go vet`, `go test`, `go build` for all packages
-2. **client-binaries** — cross-compiles the macOS client (darwin/amd64 +
-   darwin/arm64) and uploads them as workflow artifacts
