@@ -133,10 +133,10 @@ make test-e2e     # or: cd client && go test -v ./e2e/
 ```
 
 The same package also contains **hardware tests** for camera/microphone
-detection: they compile a small Swift helper (`e2e/avtrigger/main.swift`)
-that streams from the real device for a few seconds and assert that
+detection: they capture a few seconds from the real device with
+[ffmpeg](https://ffmpeg.org) (`brew install ffmpeg`) and assert that
 `monitor.CameraInUse()` / `monitor.MicrophoneInUse()` react. On machines
-without a usable camera/microphone (CI runners, VMs) they **skip
+without ffmpeg or a usable camera/microphone (CI runners, VMs) they **skip
 automatically**, so `make test-e2e` is safe to run anywhere.
 
 ## Configuration (.env)
