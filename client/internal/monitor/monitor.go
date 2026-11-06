@@ -7,12 +7,16 @@
 //   - Camera: the com.apple.cameracapture subsystem logs
 //     "AVCaptureSession ... _setRunning: ... running -> 1" when an app starts
 //     the camera and "running -> 0" when it stops.
-//   - Microphone: the com.apple.coreaudio:as_client category logs
-//     "setPlayState Started  Input {Device, 0xNN}" / "setPlayState Stopped
-//     Input {Device, 0xNN}" when an app starts/stops capturing audio. The
-//     0xNN session id lets us pair starts with stops. Events from
-//     corespeechd (Siri's always-on voice service) are ignored: it holds an
-//     input session open permanently and is not a call.
+//   - Microphone: two log shapes are tracked:
+//     1. com.apple.coreaudio:as_client logs "setPlayState Started  Input
+//     {Device, 0xNN}" / "setPlayState Stopped Input {Device, 0xNN}" (used
+//     by native apps like Discord). The 0xNN session id pairs starts with
+//     stops. corespeechd (Siri's always-on voice service) is ignored: it
+//     holds an input session open permanently and is not a call.
+//     2. audiomxd (com.apple.coreaudio:as_server) logs
+//     "update_running_state" JSON blobs with "input_running":true/false
+//     per audio session (used by browsers, e.g. Chrome/Google Meet). The
+//     session "ID" pairs the updates.
 //
 // The package keeps a running count of active camera/mic sessions. Each call
 // to InUse scans only the log entries produced since the previous call and
@@ -41,6 +45,7 @@ func runLogged(name string, args ...string) string {
 var (
 	cameraRunningRe = regexp.MustCompile(`running -> ([01])`)
 	micPlayStateRe  = regexp.MustCompile(`setPlayState (Started|Stopped)\s+Input(?:/Output)? \{[^,]+, (0x[0-9a-fA-F]+)\}`)
+	micRunningRe    = regexp.MustCompile(`"session":\{"ID":"(0x[0-9a-fA-F]+)".*"input_running":(true|false)`)
 )
 
 // tracker follows camera/mic start/stop events across polls.
@@ -60,7 +65,9 @@ func (t *tracker) scanWindow() string {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if t.lastCheck.IsZero() {
-		return "2m"
+		// First check: scan far enough back to catch sessions that started
+		// before the program was launched (e.g. an ongoing call).
+		return "10m"
 	}
 	d := time.Since(t.lastCheck) + 5*time.Second
 	return d.Round(time.Second).String()
@@ -93,13 +100,21 @@ func (t *tracker) applyMic(out string) {
 			continue
 		}
 		m := micPlayStateRe.FindStringSubmatch(line)
-		if m == nil {
+		if m != nil {
+			if m[1] == "Started" {
+				t.micOpen[m[2]] = true
+			} else {
+				delete(t.micOpen, m[2])
+			}
 			continue
 		}
-		if m[1] == "Started" {
-			t.micOpen[m[2]] = true
-		} else {
-			delete(t.micOpen, m[2])
+		// audiomxd update_running_state (browsers, e.g. Chrome/Meet).
+		if m := micRunningRe.FindStringSubmatch(line); m != nil {
+			if m[2] == "true" {
+				t.micOpen[m[1]] = true
+			} else {
+				delete(t.micOpen, m[1])
+			}
 		}
 	}
 }
@@ -112,15 +127,16 @@ func (t *tracker) state() (camera, mic bool) {
 }
 
 // InUse reports whether the camera or the microphone is currently in use.
-// The first call scans the last 2 minutes of logs; subsequent calls scan only
-// what happened since the previous call.
+// The first call scans the last 10 minutes of logs (to catch sessions that
+// started before the program was launched); subsequent calls scan only what
+// happened since the previous call.
 func InUse() (camera, mic bool) {
 	window := defaultTracker.scanWindow()
 
 	cameraOut := runLogged("log", "show", "--last", window, "--style", "compact",
 		"--predicate", `subsystem == "com.apple.cameracapture" AND eventMessage CONTAINS "running -> "`)
 	micOut := runLogged("log", "show", "--last", window, "--style", "compact",
-		"--predicate", `subsystem == "com.apple.coreaudio" AND eventMessage CONTAINS "setPlayState" AND eventMessage CONTAINS "Input"`)
+		"--predicate", `subsystem == "com.apple.coreaudio" AND (eventMessage CONTAINS "setPlayState" OR eventMessage CONTAINS "update_running_state") AND eventMessage CONTAINS[c] "input"`)
 
 	defaultTracker.applyCamera(cameraOut)
 	defaultTracker.applyMic(micOut)
