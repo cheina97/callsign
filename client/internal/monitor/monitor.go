@@ -10,7 +10,9 @@
 //   - Microphone: the com.apple.coreaudio:as_client category logs
 //     "setPlayState Started  Input {Device, 0xNN}" / "setPlayState Stopped
 //     Input {Device, 0xNN}" when an app starts/stops capturing audio. The
-//     0xNN session id lets us pair starts with stops.
+//     0xNN session id lets us pair starts with stops. Events from
+//     corespeechd (Siri's always-on voice service) are ignored: it holds an
+//     input session open permanently and is not a call.
 //
 // The package keeps a running count of active camera/mic sessions. Each call
 // to InUse scans only the log entries produced since the previous call and
@@ -45,11 +47,11 @@ var (
 type tracker struct {
 	mu         sync.Mutex
 	lastCheck  time.Time
-	cameraOpen int            // number of unmatched "running -> 1"
-	micOpen    map[string]int // active mic sessions by session id
+	cameraOpen int             // number of unmatched "running -> 1"
+	micOpen    map[string]bool // active mic sessions by session id
 }
 
-var defaultTracker = &tracker{micOpen: map[string]int{}}
+var defaultTracker = &tracker{micOpen: map[string]bool{}}
 
 // scanWindow returns the --last argument for the next log query: everything
 // since the previous check (plus a small overlap to avoid missing entries at
@@ -86,14 +88,18 @@ func (t *tracker) applyMic(out string) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	for _, line := range strings.Split(out, "\n") {
+		// corespeechd (Siri) holds an input session open permanently.
+		if strings.Contains(line, "corespeechd") {
+			continue
+		}
 		m := micPlayStateRe.FindStringSubmatch(line)
 		if m == nil {
 			continue
 		}
 		if m[1] == "Started" {
-			t.micOpen[m[2]]++
-		} else if t.micOpen[m[2]] > 0 {
-			t.micOpen[m[2]]--
+			t.micOpen[m[2]] = true
+		} else {
+			delete(t.micOpen, m[2])
 		}
 	}
 }
@@ -102,14 +108,7 @@ func (t *tracker) applyMic(out string) {
 func (t *tracker) state() (camera, mic bool) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	micActive := false
-	for _, n := range t.micOpen {
-		if n > 0 {
-			micActive = true
-			break
-		}
-	}
-	return t.cameraOpen > 0, micActive
+	return t.cameraOpen > 0, len(t.micOpen) > 0
 }
 
 // InUse reports whether the camera or the microphone is currently in use.
