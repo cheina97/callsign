@@ -64,7 +64,8 @@ Layout:
 client/
 ├── cmd/
 │   ├── callsign-client/  # the monitor client
-│   └── fake-server/      # fake ESP32 API for testing without hardware
+│   ├── fake-server/      # fake ESP32 API for testing without hardware
+│   └── monitor-debug/    # prints camera/mic state changes (no server needed)
 ├── e2e/                  # end-to-end tests (fake server + display client)
 └── internal/
     ├── display/          # ESP32 REST API client
@@ -105,6 +106,18 @@ auto-off timeout) and logs every state change:
 go run ./cmd/fake-server -addr :8080          # -timeout 5m by default
 ./callsign-client -esp32 http://localhost:8080 -ssid "YourHomeWifi"
 ```
+
+### Testing camera/microphone detection
+
+To verify detection alone (no server, no display), run `monitor-debug`: it
+polls the camera/microphone state and prints a line every time it changes:
+
+```sh
+go run ./cmd/monitor-debug            # -interval 2s by default
+```
+
+Open/close an app that uses the camera or microphone (e.g. Photo Booth,
+Zoom) and you should see the transitions logged.
 
 ### End-to-end tests
 
