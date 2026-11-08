@@ -93,14 +93,8 @@ func (t *tracker) update() {
 	}
 
 	t.mu.Lock()
-	firstSend := t.lastSent == display.State("")
 	t.lastSent = state
 	t.mu.Unlock()
-	// The initial "free" is just the display syncing to the idle state the
-	// devices were already in - the "devices:" line above covers it.
-	if !firstSend || state != display.StateFree {
-		log.Printf("%s %s", stateEmoji(state), state)
-	}
 }
 
 func onOff(on bool) string {
@@ -108,13 +102,6 @@ func onOff(on bool) string {
 		return "🟢 on"
 	}
 	return "⚪ off"
-}
-
-func stateEmoji(s display.State) string {
-	if s == display.StateCall {
-		return "🔴"
-	}
-	return "🟢"
 }
 
 func main() {
