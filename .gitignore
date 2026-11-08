@@ -3,8 +3,8 @@
 
 # Build artifacts
 bin/
-callsign-client
-fake-server
+/callsign-client
+/fake-server
 
 # Editor / OS
 .vscode/
@@ -19,3 +19,12 @@ client/monitor-debug
 
 # PlatformIO
 firmware/.pio/
+firmware/.vscode/.browse.c_cpp.db*
+firmware/.vscode/c_cpp_properties.json
+firmware/.vscode/launch.json
+firmware/.vscode/ipch
+
+# Generated at build time from .env by firmware/gen_wifi_config.py
+# (contains Wi-Fi credentials - never commit)
+firmware/callsign/build_config.h
+firmware/callsign/wifi_config.h

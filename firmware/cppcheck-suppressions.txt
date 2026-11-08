@@ -1,0 +1,4 @@
+# Suppress all findings in third-party library code (FastLED), which is
+# compiled into the sketch but not ours to fix. The path glob matches any
+# file under a FastLED directory.
+*:*FastLED*

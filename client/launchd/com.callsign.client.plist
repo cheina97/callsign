@@ -5,7 +5,7 @@
   <key>Label</key>
   <string>com.callsign.client</string>
 
-  <!-- __PROJECT_DIR__ is replaced by `make install-agent` -->
+  <!-- __PROJECT_DIR__ is replaced by `make agent-install` -->
   <key>ProgramArguments</key>
   <array>
     <string>__PROJECT_DIR__/bin/callsign-client</string>

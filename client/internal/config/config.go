@@ -58,9 +58,10 @@ func Get(key, fallback string) string {
 // flagEnv maps flag names to the environment variable that overrides them.
 // Only flags listed here can be overridden via the environment / .env.
 var flagEnv = map[string]string{
-	"esp32": "ESP32_URL",
-	"ssid":  "WIFI_SSID",
-	"addr":  "ADDR",
+	"esp32":         "ESP32_URL",
+	"ssid":          "WIFI_SSID",
+	"addr":          "ADDR",
+	"no-wifi-check": "SKIP_WIFI_CHECK",
 }
 
 // ApplyEnv overrides flag values with the environment variables mapped in

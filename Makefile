@@ -8,8 +8,9 @@ PLIST_PATH   := $(HOME)/Library/LaunchAgents/$(PLIST_LABEL).plist
 PROJECT_DIR  := $(shell pwd)
 
 .PHONY: all build build-client build-server run-client run-server \
-        test test-e2e vet fmt tidy install-agent uninstall-agent agent-status clean help \
-        firmware-build firmware-upload firmware-monitor
+        test test-e2e vet fmt tidy agent-install agent-uninstall agent-status agent-logs clean help \
+        firmware-build firmware-upload firmware-monitor firmware-check firmware-test \
+        firmware-clean firmware-size
 
 all: build
 
@@ -59,23 +60,48 @@ firmware-upload: ## Flash the firmware to a connected ESP32
 firmware-monitor: ## Open the serial monitor (115200 baud)
 	cd firmware && pio device monitor
 
+firmware-check: ## Static analysis of the firmware (cppcheck via PlatformIO)
+	cd firmware && pio check --fail-on-defect=high
+
+firmware-test: ## Run firmware unit tests on the host (no ESP32 needed)
+	cd firmware && pio test -e native
+
+firmware-clean: ## Remove all firmware build artifacts (.pio, generated config)
+	cd firmware && pio run -t clean && rm -rf .pio callsign/wifi_config.h
+
+firmware-size: firmware-build ## Show firmware size vs board limits (fails if over)
+	@cd firmware && pio run | sed -n -E \
+		-e 's/^(RAM|Flash):.*used ([0-9]+) bytes from ([0-9]+) bytes.*/\1 \2 \3/p' | \
+	while read region used total; do \
+		pct=$$((used * 100 / total)); \
+		if [ $$used -gt $$total ]; then \
+			printf "%-6s %8d / %d bytes (%d%%)  *** OVER LIMIT ***\n" $$region $$used $$total $$pct; \
+			exit 1; \
+		else \
+			printf "%-6s %8d / %d bytes (%d%%)\n" $$region $$used $$total $$pct; \
+		fi; \
+	done
+
 ## launchd (run the client always in background, restart on failure)
 
-install-agent: build-client ## Install & start the client as a launchd agent
+agent-install: build-client ## Install & start the client as a launchd agent
 	@mkdir -p $(HOME)/Library/LaunchAgents
 	@sed -e 's|__PROJECT_DIR__|$(PROJECT_DIR)|g' \
-		launchd/$(PLIST_LABEL).plist > $(PLIST_PATH)
+		client/launchd/$(PLIST_LABEL).plist > $(PLIST_PATH)
 	@launchctl unload $(PLIST_PATH) 2>/dev/null || true
 	launchctl load $(PLIST_PATH)
 	@echo "Installed. Logs: /tmp/callsign.log — status: make agent-status"
 
-uninstall-agent: ## Stop & remove the launchd agent
+agent-uninstall: ## Stop & remove the launchd agent (and its log file)
 	@launchctl unload $(PLIST_PATH) 2>/dev/null || true
-	@rm -f $(PLIST_PATH)
+	@rm -f $(PLIST_PATH) /tmp/callsign.log
 	@echo "Agent removed."
 
 agent-status: ## Show whether the agent is running
 	@launchctl list | grep $(PLIST_LABEL) || echo "not running"
+
+agent-logs: ## Tail the launchd agent logs (Ctrl-C to stop)
+	tail -f /tmp/callsign.log
 
 ## Misc
 

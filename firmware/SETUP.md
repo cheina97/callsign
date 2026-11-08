@@ -1,7 +1,7 @@
 # ESP32 firmware: development environment setup
 
 This guide sets up **PlatformIO** (build, upload, serial monitor, debugging)
-and **Wokwi** (local ESP32 + MAX7219 simulation) for the callsign firmware,
+and **Wokwi** (local ESP32 + WS2812B NeoPixel simulation) for the callsign firmware,
 all inside VS Code.
 
 ## 1. Install the tools
@@ -58,8 +58,8 @@ repo with PlatformIO 6.2).
 The repo already contains the simulation setup:
 
 - [wokwi.toml](wokwi.toml) - points Wokwi at the PlatformIO build output
-- [diagram.json](diagram.json) - wires the ESP32 (pins 23/18/5 = DIN/CLK/CS)
-  to a 4-module MAX7219 LED matrix
+- [diagram.json](diagram.json) - wires the ESP32 (pin 23 = DIN, plus 5V/GND)
+  to a 32x8 WS2812B (NeoPixel) RGB matrix
 
 Steps:
 
@@ -70,14 +70,13 @@ Steps:
    ignored in simulation... see note below), and starts the HTTP server.
 
 > **Note on Wi-Fi credentials:** Wokwi provides a virtual network called
-> `Wokwi-GUEST`. For the simulation to connect, temporarily set in
-> `callsign.ino`:
-> ```cpp
-> const char* WIFI_SSID     = "Wokwi-GUEST";
-> const char* WIFI_PASSWORD = "";
+> `Wokwi-GUEST`. For the simulation to connect, set in the repo-root `.env`:
+> ```sh
+> WIFI_SSID=Wokwi-GUEST
+> WIFI_PASSWORD=
 > ```
-> (Or make it permanent - the real device just needs your real credentials
-> restored before flashing.)
+> and rebuild (`make firmware-build`). Restore your real credentials
+> before flashing to hardware.
 
 **Check it works:**
 
@@ -98,8 +97,9 @@ simulator output for the exact address.)
 
 ## 4. Flash a real ESP32
 
-1. Set your real Wi-Fi credentials in `callsign/callsign.ino`
-   (`WIFI_SSID` / `WIFI_PASSWORD`).
+1. Set your real Wi-Fi credentials in the repo-root `.env`
+   (`WIFI_SSID` / `WIFI_PASSWORD` - see `.env.example`). The build
+   generates `firmware/callsign/wifi_config.h` from it automatically.
 2. Connect the ESP32 via USB.
 3. ```sh
    make firmware-upload
@@ -117,7 +117,19 @@ curl http://<esp32-ip>/status                                 # JSON status
 Then start the client (`make run-client`) and watch the display follow your
 camera/microphone state.
 
-## 5. Debugging
+## 5. Tests & static analysis
+
+```sh
+make firmware-test     # host-side unit tests (display logic), no ESP32 needed
+make firmware-check    # cppcheck static analysis
+```
+
+The unit tests compile the pure display logic
+([callsign/display_logic.h](callsign/display_logic.h)) for your Mac with
+PlatformIO's `native` platform and run it with the Unity test framework -
+no hardware involved. Test sources live in [test/](test/).
+
+## 6. Debugging
 
 - **Simulation**: the Wokwi extension supports breakpoints/stepping in the
   simulated firmware (GDB-based, works with the ELF built by PlatformIO).

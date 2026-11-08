@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Camera & Mic Toggle</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            text-align: center;
+            margin: 0;
+            background: #121212;
+            color: #e0e0e0;
+        }
+        h2 { color: #f0f0f0; }
+        video {
+            background: #000;
+            border-radius: 8px;
+            border: 1px solid #333;
+        }
+        select {
+            padding: 6px;
+            min-width: 220px;
+            background: #1e1e1e;
+            color: #e0e0e0;
+            border: 1px solid #444;
+            border-radius: 4px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background: #2d2d2d;
+            color: #e0e0e0;
+            border: 1px solid #555;
+            border-radius: 6px;
+        }
+        button:hover { background: #3d3d3d; }
+        label { color: #bbb; }
+    </style>
+</head>
+<body>
+    <video id="webcam" autoplay playsinline muted width="640" height="480"></video>
+    <br><br>
+
+    <div style="margin-bottom: 10px;">
+        <label for="cameraSelect">Camera:</label>
+        <select id="cameraSelect"></select>
+        <button id="camBtn" onclick="toggleCam()">Turn Camera On</button>
+    </div>
+
+    <div>
+        <label for="micSelect">Mic:</label>
+        <select id="micSelect"></select>
+        <button id="micBtn" onclick="toggleMic()">Turn Mic On</button>
+        <span id="micLevel" style="margin-left: 10px;">🔇</span>
+    </div>
+
+    <script>
+        let camStream = null;
+        let micStream = null;
+        let audioCtx = null;
+        const videoElement = document.getElementById('webcam');
+        const camBtn = document.getElementById('camBtn');
+        const micBtn = document.getElementById('micBtn');
+        const cameraSelect = document.getElementById('cameraSelect');
+        const micSelect = document.getElementById('micSelect');
+        const micLevel = document.getElementById('micLevel');
+
+        // Populate the device dropdowns. Labels require permission first, so
+        // we request it once and then enumerate.
+        async function listDevices() {
+            const devices = await navigator.mediaDevices.enumerateDevices();
+            const cams = devices.filter(d => d.kind === 'videoinput');
+            const mics = devices.filter(d => d.kind === 'audioinput');
+            cameraSelect.innerHTML = cams.map((d, i) =>
+                `<option value="${d.deviceId}">${d.label || 'Camera ' + (i + 1)}</option>`).join('');
+            micSelect.innerHTML = mics.map((d, i) =>
+                `<option value="${d.deviceId}">${d.label || 'Mic ' + (i + 1)}</option>`).join('');
+        }
+
+        async function toggleCam() {
+            if (camStream) {
+                camStream.getTracks().forEach(t => t.stop());
+                camStream = null;
+                videoElement.srcObject = null;
+                camBtn.innerText = "Turn Camera On";
+            } else {
+                try {
+                    camStream = await navigator.mediaDevices.getUserMedia({
+                        video: { deviceId: { exact: cameraSelect.value } }
+                    });
+                    videoElement.srcObject = camStream;
+                    camBtn.innerText = "Turn Camera Off";
+                } catch (err) {
+                    alert("Camera access denied or not available: " + err);
+                }
+            }
+        }
+
+        async function toggleMic() {
+            if (micStream) {
+                micStream.getTracks().forEach(t => t.stop());
+                micStream = null;
+                if (audioCtx) { audioCtx.close(); audioCtx = null; }
+                micBtn.innerText = "Turn Mic On";
+                micLevel.innerText = "🔇";
+            } else {
+                try {
+                    micStream = await navigator.mediaDevices.getUserMedia({
+                        audio: { deviceId: { exact: micSelect.value } }
+                    });
+                    micBtn.innerText = "Turn Mic Off";
+                    micLevel.innerText = "🎤";
+                } catch (err) {
+                    alert("Mic access denied or not available: " + err);
+                }
+            }
+        }
+
+        // Restart a running device when its selection changes.
+        cameraSelect.onchange = async () => {
+            if (camStream) { await toggleCam(); await toggleCam(); }
+        };
+        micSelect.onchange = async () => {
+            if (micStream) { await toggleMic(); await toggleMic(); }
+        };
+
+        // Get permission (so labels are visible), then list devices.
+        navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+            .then(s => { s.getTracks().forEach(t => t.stop()); listDevices(); })
+            .catch(() => listDevices());
+    </script>
+</body>
+</html>
