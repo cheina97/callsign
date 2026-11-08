@@ -15,7 +15,7 @@
       "id": "matrix",
       "top": -150,
       "left": 100,
-      "attrs": { "chain": "4" }
+      "attrs": { "chain": "4", "layout": "fc16" }
     }
   ],
   "connections": [

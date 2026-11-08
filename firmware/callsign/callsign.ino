@@ -19,17 +19,17 @@
 #include <MD_MAX72xx.h>
 #include <SPI.h>
 
-// ---------------- Configuration ----------------
-const char* WIFI_SSID     = "YOUR_WIFI_SSID";
-const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
+#include "display_logic.h" // glyph table + text rendering (unit-tested on host)
+#include "build_config.h"  // WIFI_SSID / WIFI_PASSWORD / MIRROR_DISPLAY, generated from .env
 
+// ---------------- Configuration ----------------
 #define HARDWARE_TYPE MD_MAX72XX::FC16_HW  // most common 4-in-1 module type
 #define MAX_DEVICES   4
 #define PIN_DIN       23
 #define PIN_CLK       18
 #define PIN_CS         5
 
-const uint32_t TIMEOUT_MS = 5UL * 60UL * 1000UL;  // 5 minutes
+// TIMEOUT_MS comes from build_config.h (FIRMWARE_TIMEOUT_S in .env)
 // -------------------------------------------------
 
 MD_MAX72XX mx(HARDWARE_TYPE, PIN_CS, MAX_DEVICES);
@@ -39,53 +39,18 @@ enum State { STATE_OFF, STATE_CALL, STATE_FREE };
 State currentState = STATE_OFF;
 uint32_t lastUpdateMs = 0;
 
-// 5x7 font, column-major, LSB = top pixel. Only the glyphs we need.
-const uint8_t FONT[][5] = {
-  /* 'A' */ {0x7E, 0x11, 0x11, 0x11, 0x7E},
-  /* 'C' */ {0x3E, 0x41, 0x41, 0x41, 0x22},
-  /* 'E' */ {0x7F, 0x49, 0x49, 0x49, 0x41},
-  /* 'F' */ {0x7F, 0x09, 0x09, 0x09, 0x01},
-  /* 'L' */ {0x7F, 0x40, 0x40, 0x40, 0x40},
-  /* 'R' */ {0x7F, 0x09, 0x19, 0x29, 0x46},
-};
-
-const uint8_t* glyphFor(char c) {
-  switch (c) {
-    case 'A': return FONT[0];
-    case 'C': return FONT[1];
-    case 'E': return FONT[2];
-    case 'F': return FONT[3];
-    case 'L': return FONT[4];
-    case 'R': return FONT[5];
-  }
-  return nullptr;
-}
-
 // Draws text centered on the 32x8 display.
 // MD_MAX72XX point (0,0) is the top-left LED of the module chain.
 void drawText(const char* text) {
-  uint8_t cols[32];
-  memset(cols, 0, sizeof(cols));
-
-  uint8_t len = strlen(text);
-  uint8_t textWidth = len * 6 - 1;  // 5 px glyph + 1 px spacing
-  int8_t x = (32 - textWidth) / 2;
-
-  for (uint8_t i = 0; i < len; i++) {
-    const uint8_t* g = glyphFor(text[i]);
-    if (g == nullptr) continue;
-    for (uint8_t c = 0; c < 5; c++) {
-      int8_t pos = x + i * 6 + c;
-      if (pos >= 0 && pos < 32) cols[pos] = g[c];
-    }
-  }
+  uint8_t cols[DISPLAY_COLS];
+  renderText(text, cols, MIRROR_DISPLAY != 0);
 
   mx.control(MD_MAX72XX::UPDATE, MD_MAX72XX::OFF);
   mx.clear();
-  for (uint8_t col = 0; col < 32; col++) {
+  for (uint8_t col = 0; col < DISPLAY_COLS; col++) {
     uint8_t device = col / 8;   // device 0 = leftmost module
     uint8_t devCol = col % 8;
-    for (uint8_t row = 0; row < 8; row++) {
+    for (uint8_t row = 0; row < DISPLAY_ROWS; row++) {
       if (cols[col] & (1 << row)) {
         mx.setPoint(row, device * 8 + devCol, true);
       }
@@ -178,7 +143,7 @@ void loop() {
   // Turn the display off if no update arrived within the timeout.
   if (currentState != STATE_OFF &&
       (uint32_t)(millis() - lastUpdateMs) > TIMEOUT_MS) {
-    Serial.println("No update for 5 minutes - turning display off");
+    Serial.println("No update within timeout - turning display off");
     applyState(STATE_OFF);
   }
 }

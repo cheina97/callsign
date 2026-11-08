@@ -1,13 +1,13 @@
 # callsign
 
-"Am I on a call?" status display: an ESP32 drives a WS2812B (NeoPixel) 32x8
-RGB LED matrix showing **CALL** (red) or **FREE** (green), updated by a Go
-client running on your Mac that watches camera/microphone usage.
+"Am I on a call?" status display: an ESP32 drives a MAX7219 4-in-1 (32x8)
+LED matrix showing **CALL** or **FREE**, updated by a Go client running on
+your Mac that watches camera/microphone usage.
 
 ```
-┌─────────────┐   POST /status    ┌────────┐  1-wire  ┌──────────────────┐
-│ Mac client  │ ────────────────► │ ESP32  │ ───────► │ WS2812B 32x8 RGB │
-│ (Go, events)│  {"state":"call"} │  Wi-Fi │          │ CALL red/FREE grn│
+┌─────────────┐   POST /status    ┌────────┐  SPI   ┌──────────────────┐
+│ Mac client  │ ────────────────► │ ESP32  │ ──────► │ MAX7219 32x8 LED │
+│ (Go, events)│  {"state":"call"} │  Wi-Fi │          │ CALL / FREE      │
 └─────────────┘                   └────────┘          └──────────────────┘
 ```
 
@@ -25,21 +25,18 @@ client running on your Mac that watches camera/microphone usage.
 
 ## Firmware (`firmware/callsign/callsign.ino`)
 
-1. Install the **FastLED** library by Daniel Garcia (Arduino Library Manager).
+1. Install the **MD_MAX72XX** library by majicDesigns (Arduino Library Manager).
 2. Open `firmware/callsign/callsign.ino` in the Arduino IDE.
-3. Set `WIFI_SSID` / `WIFI_PASSWORD`.
-4. Wire the matrix (default pin, changeable at the top of the file):
+3. Set `WIFI_SSID` / `WIFI_PASSWORD` in the repo-root `.env` (see `.env.example`).
+4. Wire the matrix (default pins, changeable at the top of the file):
 
-   | WS2812B matrix | ESP32 |
-   |----------------|-------|
-   | VCC            | 5V (VIN) |
-   | GND            | GND |
-   | DIN            | GPIO 23 |
-
-   > A 32x8 WS2812B matrix can draw several amps at full white. Power it from
-   > a proper 5V supply (not the ESP32's regulator) for anything beyond dim
-   > text, and add a ~470Ω resistor in series on DIN plus a 1000µF capacitor
-   > across VCC/GND as recommended in the NeoPixel Überguide.
+   | MAX7219 | ESP32 |
+   |---------|-------|
+   | VCC     | 5V (VIN) |
+   | GND     | GND |
+   | DIN     | GPIO 23 |
+   | CS      | GPIO 5 |
+   | CLK     | GPIO 18 |
 
 5. Flash, then open the Serial Monitor to see the assigned IP (or give the
    ESP32 a DHCP reservation in your router).
@@ -57,9 +54,9 @@ Manual test:
 curl -X POST http://<esp32-ip>/status -d '{"state":"call"}'
 ```
 
-> **Colors:** the WS2812B matrix is full RGB. The firmware shows **CALL in
-> red** and **FREE in green**; change the `CRGB::Red` / `CRGB::Green` values
-> in `applyState()` to pick different colors.
+> **Note on color:** MAX7219 4-in-1 modules are single-color (usually red), so
+> both CALL and FREE show in the same color. The firmware uses the bold 6x8
+> font from `display_logic.h` for maximum readability.
 
 ## Client (`client/`)
 
