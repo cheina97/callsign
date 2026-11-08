@@ -8,8 +8,9 @@
 //     (the one the ESP32 lives on). If not, the update is skipped.
 //   - If camera or microphone is in use it sends "call", otherwise "free" -
 //     but only when the state changed since the last send.
-//   - The ESP32 turns the display off by itself after 5 minutes without an
-//     update, so no keep-alive is sent while the state is unchanged.
+//   - A keep-alive ticker re-sends the current state every -keepalive
+//     interval (default 4m), so the ESP32's auto-off watchdog only fires
+//     when the client is actually gone (stopped, asleep, off-network).
 package main
 
 import (
@@ -33,6 +34,7 @@ var (
 	expectedSSID   = flag.String("ssid", "YOUR_WIFI_SSID", "Wi-Fi SSID the ESP32 is reachable on (env: WIFI_SSID)")
 	requestTimeout = flag.Duration("timeout", 5*time.Second, "HTTP request timeout")
 	noWiFiCheck    = flag.Bool("no-wifi-check", false, "Skip the Wi-Fi SSID check, always report state (env: SKIP_WIFI_CHECK=true)")
+	keepAlive      = flag.Duration("keepalive", 4*time.Minute, "Re-send the current state at this interval so the display stays on while the client runs; 0 disables (env: KEEPALIVE_INTERVAL)")
 )
 
 // tracker reports display state changes. The OS listeners only tell us
@@ -74,6 +76,12 @@ func (t *tracker) update() {
 	}
 	t.mu.Unlock()
 
+	t.send(state)
+}
+
+// send reports the state to the display, honoring the Wi-Fi check, and
+// records it as lastSent on success.
+func (t *tracker) send(state display.State) {
 	if !*noWiFiCheck {
 		ok, err := network.OnNetwork(*expectedSSID)
 		switch {
@@ -97,6 +105,26 @@ func (t *tracker) update() {
 	t.mu.Unlock()
 }
 
+// keepAliveLoop re-sends the current state on every tick, so the ESP32's
+// auto-off watchdog only fires when the client is actually gone (stopped,
+// asleep, off-network) instead of whenever the state is simply unchanged.
+// It re-queries the devices rather than reusing lastSent, so it also makes
+// progress when no send has succeeded yet (e.g. the Mac just joined the
+// right network).
+func (t *tracker) keepAliveLoop(interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for range ticker.C {
+		cameraOn, micOn := monitor.InUse()
+		state := display.StateFree
+		if cameraOn || micOn {
+			state = display.StateCall
+		}
+		log.Printf("💓 keep-alive: %s", state)
+		t.send(state)
+	}
+}
+
 func onOff(on bool) string {
 	if on {
 		return "🟢 on"
@@ -115,8 +143,20 @@ func main() {
 		log.Printf("listening for camera/microphone events, reporting to %s (Wi-Fi check disabled)",
 			*esp32URL)
 	} else {
+		// Fail fast with a clear hint if the SSID can't be read at all
+		// (e.g. macOS hides it until `sudo ipconfig sethidewifiinfo 0`).
+		if ssid, err := network.SSID(); err != nil {
+			log.Printf("⚠️  cannot read the current Wi-Fi SSID: %v", err)
+		} else {
+			log.Printf("📶 on Wi-Fi %q", ssid)
+		}
 		log.Printf("listening for camera/microphone events, reporting to %s (only on Wi-Fi %q)",
 			*esp32URL, *expectedSSID)
+	}
+
+	if *keepAlive > 0 {
+		log.Printf("keep-alive: re-sending state every %s", *keepAlive)
+		go t.keepAliveLoop(*keepAlive)
 	}
 
 	// The callback argument is ignored on purpose: update() re-queries both

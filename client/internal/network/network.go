@@ -5,24 +5,39 @@ package network
 import (
 	"fmt"
 	"os/exec"
-	"regexp"
 	"strings"
 )
 
+// redactedSSID is what macOS reports instead of the real SSID when Wi-Fi
+// info is hidden (the default until `sudo ipconfig sethidewifiinfo 0` is run).
+const redactedSSID = "<redacted>"
+
 // SSID returns the SSID of the Wi-Fi network the Mac is connected to.
+//
+// It uses `ipconfig getsummary`, which is near-instant, unlike
+// `system_profiler SPAirPortDataType` which takes several seconds. Note that
+// macOS hides the SSID unless the user has run
+// `sudo ipconfig sethidewifiinfo 0`; in that case an error is returned.
 func SSID() (string, error) {
-	// macOS 14+ removed SSID access from `airport -I`; system_profiler is the
-	// reliable way to get it without Location Services permission.
-	out, err := exec.Command("system_profiler", "SPAirPortDataType").Output()
+	out, err := exec.Command("ipconfig", "getsummary", "en0").Output()
 	if err != nil {
-		return "", fmt.Errorf("system_profiler: %w", err)
+		return "", fmt.Errorf("ipconfig getsummary: %w", err)
 	}
-	re := regexp.MustCompile(`(?m)^\s*Current Network Information:\s*\n\s*([^\n:]+):`)
-	m := re.FindSubmatch(out)
-	if m == nil {
+	// The output contains both "BSSID : ..." and "SSID : ..." lines; the
+	// SSID of the current network is the last one.
+	var ssid string
+	for _, line := range strings.Split(string(out), "\n") {
+		if v, ok := strings.CutPrefix(strings.TrimSpace(line), "SSID : "); ok {
+			ssid = strings.TrimSpace(v)
+		}
+	}
+	if ssid == "" {
 		return "", fmt.Errorf("no current Wi-Fi network found (Wi-Fi off or not connected)")
 	}
-	return strings.TrimSpace(string(m[1])), nil
+	if ssid == redactedSSID {
+		return "", fmt.Errorf("macOS is hiding the Wi-Fi SSID - run `sudo ipconfig sethidewifiinfo 0` to allow the client to see it")
+	}
+	return ssid, nil
 }
 
 // OnNetwork reports whether the Mac is connected to the given SSID.

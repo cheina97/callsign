@@ -62,6 +62,7 @@ var flagEnv = map[string]string{
 	"ssid":          "WIFI_SSID",
 	"addr":          "ADDR",
 	"no-wifi-check": "SKIP_WIFI_CHECK",
+	"keepalive":     "KEEPALIVE_INTERVAL",
 }
 
 // ApplyEnv overrides flag values with the environment variables mapped in

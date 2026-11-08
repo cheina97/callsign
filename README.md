@@ -19,9 +19,13 @@ your Mac that watches camera/microphone usage.
 - It only sends when the Mac is on the **expected Wi-Fi network** (the one the
   ESP32 is on) — from any other network the request would be useless
   (skippable with `-no-wifi-check`).
+- A **keep-alive** re-sends the current state every `KEEPALIVE_INTERVAL`
+  (default 4 minutes), so the ESP32's auto-off only kicks in when the client
+  is actually gone (stopped, Mac asleep, off the network) — not when the
+  state is simply unchanged.
 - If the ESP32 receives **no update for `FIRMWARE_TIMEOUT_S` seconds**
-  (default 5 minutes), it turns the display off (e.g. Mac asleep, away from
-  the network, client stopped).
+  (default 5 minutes), it turns the display off. Keep `KEEPALIVE_INTERVAL`
+  shorter than `FIRMWARE_TIMEOUT_S`.
 
 ## Firmware (`firmware/callsign/callsign.ino`)
 
@@ -89,6 +93,7 @@ Flags:
 | `-ssid`          | `YOUR_WIFI_SSID`      | Wi-Fi network where the ESP32 lives |
 | `-timeout`       | `5s`                  | HTTP timeout |
 | `-no-wifi-check` | `false`               | Skip the Wi-Fi SSID check, always report |
+| `-keepalive`     | `4m`                  | Re-send the current state at this interval; `0` disables |
 
 Detection details (macOS):
 
@@ -98,8 +103,9 @@ Detection details (macOS):
   wired in with a `replace` directive in `client/go.mod`). This reports
   whether any process currently holds a device open and works for any app
   (native, browser, Electron). Requires cgo.
-- **Wi-Fi**: reads the current SSID via `system_profiler SPAirPortDataType`
-  (works on macOS 14+ where `airport -I` no longer returns the SSID).
+- **Wi-Fi**: reads the current SSID via `ipconfig getsummary en0` (near-instant).
+  macOS hides the SSID by default — if the client logs a warning that it
+  cannot read the SSID, run `sudo ipconfig sethidewifiinfo 0` once to allow it.
 
 ### Testing without hardware
 
@@ -155,6 +161,7 @@ cp .env.example .env   # then edit
 | `ESP32_URL` | callsign-client | ESP32 (or fake server) base URL |
 | `WIFI_SSID` | callsign-client + firmware | Wi-Fi network the ESP32 joins / client checks |
 | `SKIP_WIFI_CHECK` | callsign-client | `true` skips the Wi-Fi SSID check |
+| `KEEPALIVE_INTERVAL` | callsign-client | How often to re-send the current state (e.g. `4m`); `0` disables |
 | `ADDR`      | fake-server    | Listen address |
 | `WIFI_PASSWORD` | firmware   | Wi-Fi password baked into the firmware |
 | `FIRMWARE_MIRROR_DISPLAY` | firmware | `true` mirrors the text (differently-wired matrices) |
