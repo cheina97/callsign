@@ -6,11 +6,3 @@
 version = 1
 firmware = '.pio/build/esp32dev/firmware.bin'
 elf = '.pio/build/esp32dev/firmware.elf'
-
-# Forward the simulated ESP32's HTTP server (port 80) to the Mac, so the
-# client and curl can reach it at http://localhost:8180.
-# "target" is replaced with the simulated ESP32's IP (10.13.37.2).
-[net]
-forward = [
-  { from = ":8180", to = "target:80" },
-]

@@ -11,17 +11,19 @@
       "attrs": {}
     },
     {
-      "type": "wokwi-neopixel-matrix",
+      "type": "wokwi-max7219-matrix",
       "id": "matrix",
-      "top": -180,
+      "top": -150,
       "left": 100,
-      "attrs": { "rows": "8", "cols": "32" }
+      "attrs": { "chain": "4" }
     }
   ],
   "connections": [
     [ "esp:TX", "$serialMonitor:RX", "", [] ],
     [ "esp:RX", "$serialMonitor:TX", "", [] ],
     [ "esp:23", "matrix:DIN", "green", [ "v0" ] ],
+    [ "esp:18", "matrix:CLK", "orange", [ "v0" ] ],
+    [ "esp:5", "matrix:CS", "purple", [ "v0" ] ],
     [ "esp:VIN", "matrix:VCC", "red", [ "v0" ] ],
     [ "esp:GND.1", "matrix:GND", "black", [ "v0" ] ]
   ],
