@@ -61,7 +61,7 @@ func (t *tracker) update() {
 
 	t.mu.Lock()
 	if !t.seen || cameraOn != t.cameraOn || micOn != t.micOn {
-		log.Printf("devices: camera %s, mic %s", onOff(cameraOn), onOff(micOn))
+		log.Printf("📷 %s  🎤 %s", onOff(cameraOn), onOff(micOn))
 		t.cameraOn, t.micOn, t.seen = cameraOn, micOn, true
 	}
 	state := display.StateFree
@@ -99,15 +99,22 @@ func (t *tracker) update() {
 	// The initial "free" is just the display syncing to the idle state the
 	// devices were already in - the "devices:" line above covers it.
 	if !firstSend || state != display.StateFree {
-		log.Printf("state changed -> %s (camera: %v, mic: %v)", state, cameraOn, micOn)
+		log.Printf("%s %s", stateEmoji(state), state)
 	}
 }
 
 func onOff(on bool) string {
 	if on {
-		return "on"
+		return "🟢 on"
 	}
-	return "off"
+	return "⚪ off"
+}
+
+func stateEmoji(s display.State) string {
+	if s == display.StateCall {
+		return "🔴"
+	}
+	return "🟢"
 }
 
 func main() {
